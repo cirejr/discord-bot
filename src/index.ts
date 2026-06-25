@@ -1,43 +1,29 @@
 import { Hono } from "hono";
-import {
-  Client,
-  Events,
-  GatewayIntentBits,
-  Collection,
-  MessageFlags,
-} from "discord.js";
-import "dotenv/config";
-
-const app = new Hono();
+import { Client, GatewayIntentBits, Collection } from "discord.js";
 
 interface ExtendedClient extends Client {
   commands: Collection<string, any>;
 }
 
+const app = new Hono();
+
 app.get("/", (c) => {
-  return c.text("Hello Hono!");
+  return c.text("Bot is alive");
 });
 
-// Create a new client instance
 const baseClient = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-// When the client is ready, run this code (only once).
-// The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
-// It makes some properties non-nullable.
-baseClient.once(Events.ClientReady, (readyClient) => {
-  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-});
-
-// Log in to Discord with your client's token
-baseClient.login(process.env.DISCORD_TOKEN);
 const client = baseClient as ExtendedClient;
 client.commands = new Collection();
 
-const foldersPath = `${import.meta.dir}/commands`;
-const glob = new Bun.Glob("*/*.{ts,js}");
+const commandseventsFolderPath = `${import.meta.dir}/commands`;
+const commandGlob = new Bun.Glob("*/*.{ts,js}");
 
-for await (const relativePath of glob.scan({ cwd: foldersPath })) {
-  const filePath = `${foldersPath}/${relativePath}`;
+//Find and dynamically import all commands
+for await (const relativePath of commandGlob.scan({
+  cwd: commandseventsFolderPath,
+})) {
+  const filePath = `${commandseventsFolderPath}/${relativePath}`;
   const module = await import(filePath);
 
   const command = module.default;
@@ -51,32 +37,25 @@ for await (const relativePath of glob.scan({ cwd: foldersPath })) {
   }
 }
 
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+const eventsFolderPath = `${import.meta.dir}/events`;
+const eventGlob = new Bun.Glob("*.{ts,js}");
 
-  const command = interaction.client.commands!.get(interaction.commandName);
+//Find and dynamically import all events
+for await (const eventFiles of eventGlob.scan({ cwd: eventsFolderPath })) {
+  const filePath = `${eventsFolderPath}/${eventFiles}`;
+  const module = await import(filePath);
 
-  if (!command) {
-    console.error(`No command matching ${interaction.commandName} was found.`);
-    return;
+  const event = module.default;
+  if (event.once) {
+    client.once(event.name, (...args) => event.execute(...args));
+  } else {
+    client.on(event.name, (...args) => event.execute(...args));
   }
+}
 
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content: "There was an error while executing this command!",
-        flags: MessageFlags.Ephemeral,
-      });
-    } else {
-      await interaction.reply({
-        content: "There was an error while executing this command!",
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-  }
-});
+baseClient.login(process.env.DISCORD_TOKEN);
 
-export default app;
+export default {
+  port: Bun.env.PORT || 3000,
+  fetch: app.fetch,
+};
