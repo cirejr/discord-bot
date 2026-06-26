@@ -4,6 +4,10 @@ const token = Bun.env.DISCORD_TOKEN;
 const clientId = Bun.env.APP_ID;
 const guildId = Bun.env.GUILD_ID;
 
+console.log("token", token);
+console.log("clientId", clientId);
+console.log("guildId", guildId);
+
 const commands = [];
 const foldersPath = `${import.meta.dir}/commands`;
 const glob = new Bun.Glob("*/*.{ts,js}");
