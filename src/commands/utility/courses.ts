@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 
 const coursesCommand = {
+  cooldown: 30,
   data: new SlashCommandBuilder()
     .setName("e-learning-courses")
     .setDescription("List the courses of the e-learning platform"),

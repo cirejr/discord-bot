@@ -3,6 +3,7 @@ import { Client, GatewayIntentBits, Collection } from "discord.js";
 
 interface ExtendedClient extends Client {
   commands: Collection<string, any>;
+  cooldowns: Collection<string, any>;
 }
 
 const app = new Hono();
@@ -15,6 +16,7 @@ const baseClient = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const client = baseClient as ExtendedClient;
 client.commands = new Collection();
+client.cooldowns = new Collection();
 
 const commandseventsFolderPath = `${import.meta.dir}/commands`;
 const commandGlob = new Bun.Glob("*/*.{ts,js}");
